@@ -38,6 +38,7 @@ class PersonalOrder(models.Model):
     user = models.ForeignKey(User,
                              on_delete=models.CASCADE)
     order_type = models.CharField(max_length=256, null=True)
+    is_active = models.BooleanField(default=False)
 
 
 class GroupOrder(models.Model):

@@ -5,6 +5,15 @@ import telebot
 from telebot import types
 import json
 
+import django
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+path = os.path.expanduser(BASE_DIR)
+if path not in sys.path:
+    sys.path.insert(0, path)
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "greenway.settings")
+django.setup()
+from bot.models import PersonalOrder
+
 
 
 TOKEN = '2124163604:AAG36f9I074pcWDl3h9aSd2b4Yr06te2r2k'
@@ -58,12 +67,13 @@ def get_phone(message, dic):
 def get_address(message, dic):
     try:
         dic['user_adress'] = message.text
+        new_order = PersonalOrder.objects.create(user_id=1)
 
         bot.reply_to(message, 'поддтвердите заказ:')
 
         markup = types.InlineKeyboardMarkup()
-        button_yes = types.InlineKeyboardButton('Подтверждаю', callback_data='data_correct')
-        button_no = types.InlineKeyboardButton('Нет, начать заного', callback_data='data_wrong')
+        button_yes = types.InlineKeyboardButton('Подтверждаю', callback_data=f'correct_{new_order.id}')
+        button_no = types.InlineKeyboardButton('Нет, начать заного', callback_data=f'wrong_{new_order.id}')
 
         markup.row(button_yes, button_no)
         bot.send_message(message.chat.id, json.dumps(dic), reply_markup=markup)
@@ -73,10 +83,16 @@ def get_address(message, dic):
 
 @bot.callback_query_handler(func=lambda call: True)  # обработка кнопки
 def handle_callback(call):
-    if call.data == 'data_correct':
-        print(call.message)
+    print(call.data)
+    if 'correct' in call.data:
+        order_id = call.data.split("_")[-1]
+        new_order = PersonalOrder.objects.get(id=order_id)
+        new_order.is_active = True
+        new_order.save()
         bot.send_message(call.message.chat.id, 'Заказ подтвержден, менеджер с вами свяжется.')
-    elif call.data == 'data_wrong':
+    elif 'wrong' in call.data:
+        order_id = call.data.split("_")[-1]
+        PersonalOrder.objects.filter(id=order_id).delete()
         bot.send_message(call.message.chat.id, 'Заказ отменен.')
     bot.edit_message_reply_markup(message_id=call.message.id,
                                   chat_id=call.message.chat.id,
@@ -89,4 +105,6 @@ def echo(message):
     print(message.text)
     bot.reply_to(message, 'ничего не понимаю')
 
+
+print(PersonalOrder.objects.all().count())
 bot.infinity_polling()
