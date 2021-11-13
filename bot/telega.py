@@ -15,7 +15,6 @@ django.setup()
 from bot.models import PersonalOrder
 
 
-
 TOKEN = '2124163604:AAG36f9I074pcWDl3h9aSd2b4Yr06te2r2k'
 
 bot = telebot.TeleBot(token=TOKEN)
@@ -25,13 +24,10 @@ class Order():
     def __init__(self, ):
         self.dic = {}
 
-
-
     def get_order(self, message, dic):
         dic['user_order'] = message.text
         msg = bot.reply_to(message, 'Введите имя')
         bot.register_next_step_handler(msg, self.get_name, dic)
-
 
     def get_name(self, message, dic):
         try:
@@ -41,7 +37,6 @@ class Order():
         except Exception as e:
             print(e)
 
-
     def get_phone(self, message, dic):
         try:
             dic['user_tel'] = message.text
@@ -50,43 +45,36 @@ class Order():
         except:
             pass
 
-
     def get_address(self, message, dic):
         try:
             dic['user_adress'] = message.text
-            new_order = PersonalOrder.objects.create(user_id=1)
+            # new_order = PersonalOrder.objects.create(user_id=1)
 
             bot.reply_to(message, 'поддтвердите заказ:')
 
             markup = types.InlineKeyboardMarkup()
-            button_yes = types.InlineKeyboardButton('Подтверждаю', callback_data=f'correct_{new_order.id}')
-            button_no = types.InlineKeyboardButton('Нет, начать заного', callback_data=f'wrong_{new_order.id}')
+            button_yes = types.InlineKeyboardButton('Подтверждаю', callback_data=f'correct')
+            button_no = types.InlineKeyboardButton('Нет, начать заного', callback_data=f'wrong')
 
             markup.row(button_yes, button_no)
             bot.send_message(message.chat.id, json.dumps(dic), reply_markup=markup)
         except:
             pass
 
-
     @bot.callback_query_handler(func=lambda call: True)  # обработка кнопки
     def handle_callback(call):
         print(call)
         if 'correct' in call.data:
-            order_id = call.data.split("_")[-1]
-            new_order = PersonalOrder.objects.get(id=order_id)
+            new_order = PersonalOrder.objects.create(user_id=1)
             new_order.is_active = True
             new_order.save()
             bot.send_message(call.message.chat.id, 'Заказ подтвержден, менеджер с вами свяжется.')
         elif 'wrong' in call.data:
-            order_id = call.data.split("_")[-1]
-            PersonalOrder.objects.filter(id=order_id).delete()
             bot.send_message(call.message.chat.id, 'Заказ отменен.')
         bot.edit_message_reply_markup(message_id=call.message.id,
                                       chat_id=call.message.chat.id,
                                       reply_markup=None)
         bot.answer_callback_query(call.id)
-
-
 
 
 @bot.message_handler(commands=['start'])
