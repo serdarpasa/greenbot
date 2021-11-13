@@ -20,7 +20,7 @@ TOKEN = '2124163604:AAG36f9I074pcWDl3h9aSd2b4Yr06te2r2k'
 bot = telebot.TeleBot(token=TOKEN)
 
 
-class Order():
+class Order:
     def __init__(self, ):
         self.dic = {}
 
@@ -53,8 +53,8 @@ class Order():
             bot.reply_to(message, 'поддтвердите заказ:')
 
             markup = types.InlineKeyboardMarkup()
-            button_yes = types.InlineKeyboardButton('Подтверждаю', callback_data=f'correct')
-            button_no = types.InlineKeyboardButton('Нет, начать заного', callback_data=f'wrong')
+            button_yes = types.InlineKeyboardButton('Подтверждаю', callback_data='correct')
+            button_no = types.InlineKeyboardButton('Нет, начать заного', callback_data='wrong')
 
             markup.row(button_yes, button_no)
             bot.send_message(message.chat.id, json.dumps(dic), reply_markup=markup)
@@ -63,13 +63,12 @@ class Order():
 
     @bot.callback_query_handler(func=lambda call: True)  # обработка кнопки
     def handle_callback(call):
-        print(call)
-        if 'correct' in call.data:
+        if call.data == 'correct':
             new_order = PersonalOrder.objects.create(user_id=1)
             new_order.is_active = True
             new_order.save()
             bot.send_message(call.message.chat.id, 'Заказ подтвержден, менеджер с вами свяжется.')
-        elif 'wrong' in call.data:
+        elif call.data == 'wrong':
             bot.send_message(call.message.chat.id, 'Заказ отменен.')
         bot.edit_message_reply_markup(message_id=call.message.id,
                                       chat_id=call.message.chat.id,
