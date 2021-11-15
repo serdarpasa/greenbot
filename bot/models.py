@@ -26,6 +26,18 @@ class User(AbstractUser):
     chat_id = models.IntegerField(null=True)
 
 
+class TelegramUser(models.Model):
+    user_code = models.IntegerField()
+    chat_code = models.IntegerField()
+    username = models.CharField(max_length=128)
+    name = models.CharField(max_length=128)
+    surname = models.CharField(max_length=128)
+    patronymic = models.CharField(max_length=128)
+    address = models.TextField()
+    tel = models.CharField(max_length=32)
+    data = models.TextField()
+
+
 class Autoline(models.Model):
     pass
 
@@ -35,10 +47,16 @@ class Europochta(models.Model):
 
 
 class PersonalOrder(models.Model):
-    user = models.ForeignKey(User,
-                             on_delete=models.CASCADE)
-    order_type = models.CharField(max_length=256, null=True)
-    is_active = models.BooleanField(default=False)
+    code = models.CharField(max_length=256, verbose_name='Код индивидуального заказа')
+    number = models.CharField(max_length=256, verbose_name='Номер индивидуального заказа')
+    creator = models.ForeignKey(TelegramUser, on_delete=models.CASCADE)
+    surname = models.CharField(max_length=256, verbose_name='Фамилия заказчика')
+    tel_number = models.CharField(max_length=32, verbose_name='Номер телефона')
+    delivery_type = models.CharField(max_length=32)
+    delivery_address = models.CharField(max_length=222, null=True)  # placeholder
+    comment = models.CharField(max_length=255,
+                               null=True,
+                               verbose_name='Комментарий')
 
 
 class GroupOrder(models.Model):
