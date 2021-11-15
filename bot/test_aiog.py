@@ -1,3 +1,8 @@
+import asyncio
+
+import sys
+import os
+
 import typing
 
 from aiogram import Bot, types
@@ -6,6 +11,15 @@ from aiogram.dispatcher import Dispatcher, FSMContext
 from aiogram.dispatcher.filters.state import State, StatesGroup
 from aiogram.utils import executor
 from aiogram.utils.callback_data import CallbackData
+
+import django
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+path = os.path.expanduser(BASE_DIR)
+if path not in sys.path:
+    sys.path.insert(0, path)
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "greenway.settings")
+django.setup()
+from bot.models import PersonalOrder
 
 
 TOKEN = '2124163604:AAG36f9I074pcWDl3h9aSd2b4Yr06te2r2k'
@@ -33,6 +47,14 @@ POSTS = {
 posts_cb = CallbackData('post_le', 'id', 'body', 'action')  # post:<id>:<action>
 
 
+async def set_commands(bot: Bot):
+    commands = [
+        types.BotCommand(command='/order', description='Индивидуальный заказ'),
+        types.BotCommand(command='/group_order', description='Груповой заказ')
+    ]
+    await bot.set_my_commands(commands)
+
+
 @dp.message_handler(commands=['start'])
 async def start(message: types.Message):
     await message.reply('Hello world')
@@ -43,7 +65,6 @@ async def start(message: types.Message):
                 post['title'],
                 callback_data=posts_cb.new(id=post_id, body='ololo', action='view')),
         )
-    print(f'post items: {post_id} {post}')
     await message.reply('psts', reply_markup=markup)
 
 
@@ -64,11 +85,12 @@ class Order(StatesGroup):
     comment = State()
     choose_delivery = State()
     address = State()
+    confirm = State()
 
 
 @dp.message_handler(commands=['order'])
 async def start_order(message: types.Message):
-    await message.reply(f'Введите номер заказа')
+    await message.reply(f'Введите номер заказа', reply_markup=types.ReplyKeyboardRemove())
     await Order.number.set()
 
 
@@ -100,20 +122,19 @@ async def order_name(message: types.Message, state: FSMContext):
     await Order.next()
 
 
-@dp.message_handler(state=Order.choose_comment)
+@dp.message_handler(lambda message: message.text in ['Оставить комментарий', 'Продолжить'],
+                    state=Order.choose_comment)
 async def order_choose_comment(message: types.Message, state: FSMContext):
     if message.text == 'Оставить комментарий':
-        await message.answer('Введите свой комментайрий:')
+        await message.answer('Введите свой комментайрий:', reply_markup=types.ReplyKeyboardRemove())
         await Order.next()
-    elif message.text == 'Продолжить':
+    else:
         keyboard = types.ReplyKeyboardMarkup()
         button_outlet = types.KeyboardButton('До пункта выдачи')
         button_door = types.KeyboardButton('До двери')
         keyboard.add(button_outlet, button_door)
         await message.answer("Выберите тип доставки", reply_markup=keyboard)
         await Order.choose_delivery.set()
-    else:
-        pass
 
 
 @dp.message_handler(state=Order.comment)
@@ -128,7 +149,8 @@ async def order_comment(message: types.Message, state: FSMContext):
     await Order.next()
 
 
-@dp.message_handler(state=Order.choose_delivery)
+@dp.message_handler(lambda message: message.text in ['До пункта выдачи', 'До двери'],
+                    state=Order.choose_delivery)
 async def order_choose_delivery(message: types.Message, state: FSMContext):
     if message.text == 'До пункта выдачи':
         print('пункт выдачи')
@@ -141,21 +163,42 @@ async def order_choose_delivery(message: types.Message, state: FSMContext):
         await state.update_data(choose_delivery='outlet')
         await Order.next()
 
-    elif message.text == 'До двери':
-        await message.answer('Введите адрес для доставки')
+    else:
+        await message.answer('Введите адрес для доставки', reply_markup=types.ReplyKeyboardRemove())
         await state.update_data(choose_delivery='to_door')
         await Order.next()
-    else:
-        print('%((((')
 
 
 @dp.message_handler(state=Order.address)
 async def order_delivery_address(message: types.Message, state: FSMContext):
     await state.update_data(address=message.text)
-    await message.answer(f'Доставка будет по аддресу: {message.text}')
     user_data = await state.get_data()
-    await message.answer(f"{user_data['address']}, {user_data['choose_delivery']}, {user_data}")
+    await message.answer('Подтвердите введенную информацию:')
+
+    keyboard = types.ReplyKeyboardMarkup()
+    button_yes = types.KeyboardButton('Да, информация верна')
+    button_no = types.KeyboardButton('Нет, начать заного')
+    keyboard.add(button_yes, button_no)
+    await bot.send_message(message.chat.id, user_data, reply_markup=keyboard)
+    await Order.next()
+
+
+@dp.message_handler(lambda message: message.text in ['Да, информация верна', 'Нет, начать заного'],
+                    state=Order.confirm)
+async def order_confirm(message: types.Message, state: FSMContext):
+    if message.text == 'Да, информация верна':
+        await message.answer('Заказ подтвержден, менерджер с вами свяжется', reply_markup=types.ReplyKeyboardRemove())
+    elif message.text == 'Нет, начать заного':
+        await message.answer('Начните заного', reply_markup=types.ReplyKeyboardRemove())
+    else:
+        await message.answer('Пожлуйста, используйте клавиатуру для ответа')
     await state.finish()
 
 
-executor.start_polling(dp)
+@dp.message_handler(state=[Order.confirm, Order.choose_delivery, Order.choose_comment])
+async def order_error(message: types.Message, state: FSMContext):
+    return await message.reply('Пожалуйста, используйте клавиатуру')
+
+
+if __name__ == '__main__':
+    executor.start_polling(dp)
