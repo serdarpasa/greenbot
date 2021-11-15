@@ -3,6 +3,8 @@ import asyncio
 import sys
 import os
 
+import importlib
+
 import typing
 
 from aiogram import Bot, types
@@ -19,7 +21,7 @@ if path not in sys.path:
     sys.path.insert(0, path)
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "greenway.settings")
 django.setup()
-from bot.models import PersonalOrder
+
 
 
 TOKEN = '2124163604:AAG36f9I074pcWDl3h9aSd2b4Yr06te2r2k'
@@ -28,13 +30,6 @@ storage = MemoryStorage()
 dp = Dispatcher(bot, storage=storage)
 
 delivery_cb = CallbackData('delivery', 'id', 'address', 'action')
-
-location_test = {
-    str(index): {
-        'title': f'loca {index}',
-        'address': 'Lorem ipsum',
-    } for index in range(1, 5)
-}
 
 POSTS = {
     str(index): {
@@ -78,6 +73,10 @@ async def help_actions(call: types.CallbackQuery):
     elif call.data == 'help_c':
         await call.message.answer('Позвоните на горячую линию: тел +375291234567')
     await call.message.answer('hellllp')
+
+
+@dp.message_handler(commands=['/order'])
+
 
 
 @dp.message_handler(commands=['start'])
