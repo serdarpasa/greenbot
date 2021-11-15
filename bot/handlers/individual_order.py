@@ -5,6 +5,8 @@ from aiogram import Bot, types
 from aiogram.dispatcher import Dispatcher, FSMContext
 from aiogram.dispatcher.filters.state import State, StatesGroup
 
+from asgiref.sync import sync_to_async
+
 import django
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 path = os.path.expanduser(BASE_DIR)
@@ -13,7 +15,7 @@ if path not in sys.path:
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "greenway.settings")
 django.setup()
 
-from bot.models import PersonalOrder
+from bot.models import PersonalOrder, TelegramUser
 
 location_test = {
     str(index): {
@@ -73,6 +75,7 @@ async def order_choose_comment(message: types.Message, state: FSMContext):
         button_outlet = types.KeyboardButton('До пункта выдачи')
         button_door = types.KeyboardButton('До двери')
         keyboard.add(button_outlet, button_door)
+        await state.update_data(comment=None)
         await message.answer("Выберите тип доставки", reply_markup=keyboard)
         await Order.choose_delivery.set()
 
@@ -122,6 +125,9 @@ async def order_delivery_address(message: types.Message, state: FSMContext):
 
 async def order_confirm(message: types.Message, state: FSMContext):
     if message.text == 'Да, информация верна':
+        user_data = await state.get_data()
+        await create_order(user_data)
+
         await message.answer('Заказ подтвержден, менерджер с вами свяжется', reply_markup=types.ReplyKeyboardRemove())
     elif message.text == 'Нет, начать заного':
         await message.answer('Начните заного', reply_markup=types.ReplyKeyboardRemove())
@@ -133,6 +139,19 @@ async def order_confirm(message: types.Message, state: FSMContext):
 async def order_error(message: types.Message, state: FSMContext):
     return await message.reply('Пожалуйста, используйте клавиатуру')
 
+
+@sync_to_async
+def create_order(user_data):
+    new_order = PersonalOrder.objects.create(
+        code=user_data['number'],
+        tel_number=user_data['phone'],
+        surname=user_data['surname'],
+        comment=user_data['comment'],
+        delivery_type=user_data['choose_delivery'],
+        delivery_address=user_data['address'],
+        creator_id=1
+    )
+    new_order.save()
 
 def register_individual_order(dp: Dispatcher):
     dp.register_message_handler(start_order, commands=['order'], state=['*'])

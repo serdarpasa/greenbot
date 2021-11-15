@@ -2,7 +2,7 @@ from aiogram import types
 from aiogram.dispatcher import Dispatcher, FSMContext
 
 
-async def help(message: types.Message):
+async def get_help(message: types.Message):
     markup = types.InlineKeyboardMarkup()
     button_write = types.InlineKeyboardButton('Написать', callback_data='help_w')
     button_site = types.InlineKeyboardButton('Помощь на сайте', url='https://greenwayminsk.by/faq')
@@ -21,6 +21,10 @@ async def help_actions(call: types.CallbackQuery):
     await call.message.answer('hellllp')
 
 
+async def news(message: types.Message):
+    await message.answer('Новости: https://beegreen.by/')
+
 def register_help(dp: Dispatcher):
-    dp.register_message_handler(help, commands=['help'])
+    dp.register_message_handler(get_help, commands=['help'])
     dp.register_message_handler(help_actions, lambda call: call.data.startswith('help'))
+    dp.register_message_handler(news, commands=['news'])
