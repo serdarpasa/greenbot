@@ -47,12 +47,37 @@ POSTS = {
 posts_cb = CallbackData('post_le', 'id', 'body', 'action')  # post:<id>:<action>
 
 
-async def set_commands(bot: Bot):
+async def set_commands(dp=dp):  # dp=dp only for arg placeholder: func gets and dp inst
     commands = [
         types.BotCommand(command='/order', description='Индивидуальный заказ'),
-        types.BotCommand(command='/group_order', description='Груповой заказ')
+        types.BotCommand(command='/group_order', description='Груповой заказ'),
+        types.BotCommand(command='/help', description='Помощь'),
+        types.BotCommand(command='/news', description='Новости')
     ]
-    await bot.set_my_commands(commands)
+    await dp.bot.set_my_commands(commands)
+    print('commands are loaded')
+
+
+@dp.message_handler(commands=['help'])
+async def helf(message: types.Message):
+    markup = types.InlineKeyboardMarkup()
+    button_write = types.InlineKeyboardButton('Написать', callback_data='help_w')
+    button_site = types.InlineKeyboardButton('Помощь на сайте', url='https://greenwayminsk.by/faq')
+    button_call = types.InlineKeyboardButton('Позвонить', callback_data='help_c')
+    markup.row(button_write)
+    markup.row(button_site)
+    markup.row(button_call)
+    await message.answer('Выберите вариант', reply_markup=markup)
+
+
+# @dp.callback_query_handler(lambda data: data.message.text.startswith('help_'))
+@dp.callback_query_handler(lambda call: call.data.startswith('help'))
+async def help_actions(call: types.CallbackQuery):
+    if call.data == 'help_w':
+        await call.message.answer('Напишите сообщение')
+    elif call.data == 'help_c':
+        await call.message.answer('Позвоните на горячую линию: тел +375291234567')
+    await call.message.answer('hellllp')
 
 
 @dp.message_handler(commands=['start'])
@@ -201,4 +226,4 @@ async def order_error(message: types.Message, state: FSMContext):
 
 
 if __name__ == '__main__':
-    executor.start_polling(dp)
+    executor.start_polling(dp, on_startup=set_commands)
